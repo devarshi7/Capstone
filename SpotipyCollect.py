@@ -1,8 +1,30 @@
 
 '''
+ Future edit should remove track_genre and tracks_analysis
+
  Function definitions : spotipy_userauth, extract_playlists, playlists_id_url
-                        get_pl_details, extract_tracks, track_genre, 
+                        get_pl_details, extract_tracks, track_genre,
                         extract_tracks_analysis, track_anlaysis_to_df,
+                        convert_time, tracks_analysis, get_segments,
+                        get_playlist_analysis, get_folder_analysis,
+                        create_dataset, uri_to_id
+
+Hierachy:
+- spotipy_userauth
+- create_dataset > arg(get_folder_analysis)
+                 > get_playlist_analysis
+                 > get_segments > arg(extract_tracks_analysis > arg(extract_tracks))
+
+  - get_segments > arg(track_analysis), track_analysis_to_df, convert_time
+
+    - track_analysis_to_df > arg(track_analysis) or > extract_track_analysis(arf=g(track_id))
+
+  -extract_track_analysis > arg(tracksid), spotipy.audio_analysis
+  -extract_tracks > arg(playlist_id), spotipy.playlist_tracks
+
+Using USER's playlist: get_pl_details >  playlist_id_url > arg(extract_playlists,)
+
+Reduntant - tracks_analysis, track_genre
 
 '''
 import pandas as pd
@@ -270,7 +292,6 @@ def tracks_analysis(spotipyUserAuth, playlist_id):
 
     for name_, track_analysis in zip(tracks_name, tracks_analysis_):
 
-        # trackanalysis = track_analysis_to_df(track_analysis = track_analysis)
         analysis_dict[name_] = track_analysis
 
     return analysis_dict
@@ -421,3 +442,18 @@ def create_dataset(folder_analysis):
             for k in range(len(j)):
 
                 j[k].to_parquet(path_.joinpath('{}_{}.parquet'.format(track, df_names[k])), engine='pyarrow')
+
+
+def uri_to_id(uri_list):
+    '''
+    Parses ID from playlist URI and returns list of playlists' ID.
+    Playlist IDs get fed into extract_tracks or tracks_analysis
+
+    URI_list : list of playlist URIs
+    returns : playlists' ID list
+    '''
+    id_list = [uri_list[i].split(':')[-1] for i in range(len(uri_list))]
+
+    return id_list
+
+
