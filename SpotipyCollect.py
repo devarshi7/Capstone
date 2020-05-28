@@ -1,51 +1,39 @@
-import datetime as dt
-from dotenv import load_dotenv
-import json
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-from matplotlib.ticker import FuncFormatter
-import numpy as np
-import os
+
+'''
+ Function definitions : spotipy_userauth, extract_playlists, playlists_id_url
+                        get_pl_details, extract_tracks, track_genre, 
+                        extract_tracks_analysis, track_anlaysis_to_df,
+
+'''
 import pandas as pd
 from pandas.io.json import json_normalize
 from pathlib import Path
 import re
-import requests
 import spotipy
 import spotipy.util as util
 
 
-load_dotenv()
-CLIENT_ID = os.getenv('CLIENT_ID')
-CLIENT_SECRET = os.getenv('CLIENT_SECRET')
-REDIRECT_URI = os.getenv('REDIRECT_URI')
-USERNAME = os.getenv('USERNAME')
-SCOPE = 'playlist-read-private'
-
-spotify = spotipy.Spotify(auth_manager=spotipy.SpotifyOAuth(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, scope=SCOPE, username=USERNAME))
-# me = spotify.me()
-# me.keys()
-
-
-def spotipy_userauth2(username):
+def spotipy_userauth2(username, scope, client_id, client_secret, redirect_uri):
     '''
     Creates authorization token and returns spotipy object.
     util prompt does not refresh token and maybe deprecated in future.
     '''
-    token = util.prompt_for_user_token(username=username, scope=SCOPE, client_id=CLIENT_ID, client_secret=CLIENT_SECRET, redirect_uri=REDIRECT_URI)
-    spotify = spotipy.Spotify(auth=token)
+    token = util.prompt_for_user_token(username=username, scope=scope, client_id=client_id,
+                                       client_secret=client_secret, redirect_uri=redirect_uri)
+    sp = spotipy.Spotify(auth=token)
 
-    return spotify
+    return sp
 
 
-def spotipy_userauth(username):
+def spotipy_userauth(username, scope, client_id, client_secret, redirect_uri):
     '''
-    Creates authorization token and returns spotipy object.
-    Token automatically refreshes.
+    Creates authorization token and returns spotipy object. Token automatically refreshes.
     '''
     username = username
-    spotify = spotipy.Spotify(auth_manager=spotipy.SpotifyOAuth(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, scope=SCOPE, username=username))
-
+    spotify = spotipy.Spotify(
+        auth_manager=spotipy.SpotifyOAuth(
+            scope=scope, client_id=client_id,
+            client_secret=client_secret, redirect_uri=redirect_uri))
     return spotify
 
 
@@ -66,7 +54,7 @@ def extract_playlists(spotipyUserAuth, username):
 
 def playlists_id_url(playlistsdetails):
     '''
-    Collects and returns lists of playlist names, IDs, URLs, 
+    Collects and returns lists of playlist names, IDs, URLs,
     and number of tracks present in a playlist
 
     playlistsdetails : list of dictionary containing details of individual
@@ -95,7 +83,7 @@ def playlists_id_url(playlistsdetails):
     return pl_name, pl_id, pl_url, pltot_tracks
 
 
-def get_pl_details(username):
+def get_pl_details(spotipyUserAuth, username):
     '''
     Get playlist details such as name, id, url and total tracks
     username : username (string)
@@ -262,7 +250,7 @@ def convert_time(secs):
         return '{:0>2d}:{:0>2d}:{:0>2d}'.format(minutes, seconds, milisecs)
 
 
-def tracks_analysis_(spotipyUserAuth, playlist_id):
+def tracks_analysis(spotipyUserAuth, playlist_id):
     '''
     spotipyUserAuth : Spotipy auth object.
     playlist_id : playlist id
@@ -277,10 +265,10 @@ def tracks_analysis_(spotipyUserAuth, playlist_id):
     tracks_id = list(tracks_df['id'])
 
     # track_analysis returns a list of dictionary
-    tracks_analysis = extract_tracks_analysis(spotipyUserAuth, tracks_id)
+    tracks_analysis_ = extract_tracks_analysis(spotipyUserAuth, tracks_id)
     analysis_dict = {}
 
-    for name_, track_analysis in zip(tracks_name, tracks_analysis):
+    for name_, track_analysis in zip(tracks_name, tracks_analysis_):
 
         # trackanalysis = track_analysis_to_df(track_analysis = track_analysis)
         analysis_dict[name_] = track_analysis
@@ -366,11 +354,23 @@ def get_playlist_analysis(spotipyUserAuth, playlist_id, segments=True, min_conf=
     return playlist_analysis
 
 
-def get_folder_analysis(spotipyUserAuth, filsort_pl, segments=True, min_conf=0.5,
+def get_folder_analysis(spotipyUserAuth, filsort_pl=None, pl_name_id=None, segments=True, min_conf=0.5,
                         min_dur=0.25, tempo=True, sections=False, beats=False, bars=False):
     '''
     Here, we will be using filtered and sorted output. Future edit should take user
     playlist names and id.
+
+    spotipyUserAuth : Spotipy auth object.
+
+    filsort_pl : Default None. Uses 4-tuple output from filtersort_playlist function.
+    pl_name_id : Dafault None. In the case filsort_pl is not available,
+                 provide list of playlist name and id tuples
+
+    segments and tempo: Default True. False if not needed
+    min_conf: minimum confidence to include a segment (range 0-1)
+    min_dur : minimum duration/length in secs to include a segment
+    sections/beats/bars: Default False. True if needs to be returned
+
     Returns: a dict with key/value pairs for all playlists in the folder.
              Key : Name of the playlist (string)
              Value : a dict of track analysis of all tracks from the playlist
@@ -379,13 +379,45 @@ def get_folder_analysis(spotipyUserAuth, filsort_pl, segments=True, min_conf=0.5
 
     folder_analysis = {}
 
-    for p in filsort_pl:
+    if filsort_pl is not None:
+        for p in filsort_pl:
 
-        # remove any special characters from name (they may cause issues in filenaming)
-        pl_name = re.sub(r'[*|><:"?/]|\\', "", p[1])
-        folder_analysis[pl_name] = get_playlist_analysis(spotipyUserAuth, playlist_id=p[2],
-                                                         segments=segments, tempo=tempo,
-                                                         min_conf=min_conf, min_dur=min_dur,
-                                                         sections=sections, beats=beats, bars=bars)
+            # remove any special characters from name (they may cause issues in filenaming)
+            pl_name = re.sub(r'[*|><:"?/]|\\', "", p[1])
+            folder_analysis[pl_name] = get_playlist_analysis(spotipyUserAuth, playlist_id=p[2],
+                                                             segments=segments, tempo=tempo,
+                                                             min_conf=min_conf, min_dur=min_dur,
+                                                             sections=sections, beats=beats, bars=bars)
+    else:
+        for p in pl_name_id:
 
+            # remove any special characters from name (they may cause issues in filenaming)
+            pl_name = re.sub(r'[*|><:"?/]|\\', "", p[0])
+            folder_analysis[pl_name] = get_playlist_analysis(spotipyUserAuth, playlist_id=p[1],
+                                                             segments=segments, tempo=tempo,
+                                                             min_conf=min_conf, min_dur=min_dur,
+                                                             sections=sections, beats=beats, bars=bars)
     return folder_analysis
+
+
+def create_dataset(folder_analysis):
+    '''
+    Creates folders for each playlist, subfolders for all tracks in a playlist folder
+    and track analysis dataframes as parquet files
+    '''
+    # Path to 'Dataset' dir
+    p = Path.cwd().parent.joinpath('Dataset')
+
+    # list of dataframe names in output
+    df_names = ['tempo', 'segments', 'sections', 'beats', 'bars']
+
+    for fn, i in folder_analysis.items():
+
+        path_ = p.joinpath('{}'.format(fn))
+        path_.mkdir(exist_ok=True)
+
+        for track, j in i.items():
+
+            for k in range(len(j)):
+
+                j[k].to_parquet(path_.joinpath('{}_{}.parquet'.format(track, df_names[k])), engine='pyarrow')
