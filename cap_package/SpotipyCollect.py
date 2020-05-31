@@ -2,9 +2,9 @@
 '''
  Future edit should remove track_genre and tracks_analysis
 
- Function definitions : spotipy_userauth, extract_playlists, playlists_id_url
-                        get_pl_details, extract_tracks, track_genre,
-                        extract_tracks_analysis, track_anlaysis_to_df,
+ Function definitions : spotipy_userauth, get_playlists, playlists_id_url
+                        get_pl_details, get_tracks, track_genre,
+                        get_tracks_analysis, track_anlaysis_to_df,
                         convert_time, tracks_analysis, get_segments,
                         get_playlist_analysis, get_folder_analysis,
                         create_dataset, uri_to_id
@@ -13,16 +13,16 @@ Hierachy:
 - spotipy_userauth
 - create_dataset > arg(get_folder_analysis)
                  > get_playlist_analysis
-                 > get_segments > arg(extract_tracks_analysis > arg(extract_tracks))
+                 > get_segments > arg(get_tracks_analysis > arg(get_tracks))
 
   - get_segments > arg(track_analysis), track_analysis_to_df, convert_time
 
-    - track_analysis_to_df > arg(track_analysis) or > extract_track_analysis(arf=g(track_id))
+    - track_analysis_to_df > arg(track_analysis) or > get_track_analysis(arf=g(track_id))
 
-  -extract_track_analysis > arg(tracksid), spotipy.audio_analysis
-  -extract_tracks > arg(playlist_id), spotipy.playlist_tracks
+  -get_track_analysis > arg(tracksid), spotipy.audio_analysis
+  -get_tracks > arg(playlist_id), spotipy.playlist_tracks
 
-Using USER's playlist: get_pl_details >  playlist_id_url > arg(extract_playlists,)
+Using USER's playlist: get_pl_details >  playlist_id_url > arg(get_playlists,)
 
 Reduntant - tracks_analysis, track_genre
 
@@ -59,7 +59,7 @@ def spotipy_userauth(username, scope, client_id, client_secret, redirect_uri):
     return spotify
 
 
-def extract_playlists(spotipyUserAuth, username):
+def get_playlists(spotipyUserAuth, username):
     '''
     Extract user's playlists' details
 
@@ -113,19 +113,19 @@ def get_pl_details(spotipyUserAuth, username):
     returns : lists of - all playlist names, all ids, all urls,
               and list of number of tracks in a playlist
     '''
-    pl_details = extract_playlists(spotipyUserAuth, username)
+    pl_details = get_playlists(spotipyUserAuth, username)
 
     pl_name, pl_id, pl_url, pltot_tracks = playlists_id_url(pl_details)
 
     return pl_name, pl_id, pl_url, pltot_tracks
 
 
-def extract_tracks(spotipyUserAuth, playlist_id, allCol=False, showkeys=False):
+def get_tracks(spotipyUserAuth, playlist_id, allCol=False, showkeys=False):
     '''
     Extract track info of all tracks in a playlist.
 
     spotipyUserAuth : spotipy object from 'spotipy_userauth' function.
-    playlist_id : playlist id can be obtained from  'extract_playlists'
+    playlist_id : playlist id can be obtained from  'get_playlists'
                   or 'filtersort_playlists' function.
     allCol : Default False - Returns a dataframe with only track name and id.
              True - Returns a complete dataframe of track details
@@ -207,7 +207,7 @@ def track_genre(spotipyUserAuth, album_ids):
     return album_genre
 
 
-def extract_tracks_analysis(spotipyUserAuth, tracksid, showkeys=False):
+def get_tracks_analysis(spotipyUserAuth, tracksid, showkeys=False):
     '''
     spotipyUserAuth : spotipy object from 'spotipy_userauth' function.
     trackids : list of track ids.
@@ -241,7 +241,7 @@ def track_anlaysis_to_df(trackid=None, spotipyUserAuth=None,
         if spotipyUserAuth is None:
             raise TypeError('Need spotipy authorized object')
 
-        track_analysis = extract_tracks_analysis(spotipyUserAuth, [trackid])[0]
+        track_analysis = get_tracks_analysis(spotipyUserAuth, [trackid])[0]
 
     trackoverview = track_analysis['track']
 
@@ -276,18 +276,18 @@ def tracks_analysis(spotipyUserAuth, playlist_id):
     '''
     spotipyUserAuth : Spotipy auth object.
     playlist_id : playlist id
-    *user functions extract_tracks and extract_track_analysis used here.
+    *user functions get_tracks and get_track_analysis used here.
 
     Returns : a list of tuples : (name of the track (string), tuple containing trackoverview (dictionary),
                             beats_df, bars_df, segments_df, sections_df)
     '''
-    # extract_tracks returns a dataframe
-    tracks_df = extract_tracks(spotipyUserAuth, playlist_id)
+    # get_tracks returns a dataframe
+    tracks_df = get_tracks(spotipyUserAuth, playlist_id)
     tracks_name = list(tracks_df['name'])
     tracks_id = list(tracks_df['id'])
 
     # track_analysis returns a list of dictionary
-    tracks_analysis_ = extract_tracks_analysis(spotipyUserAuth, tracks_id)
+    tracks_analysis_ = get_tracks_analysis(spotipyUserAuth, tracks_id)
     analysis_dict = {}
 
     for name_, track_analysis in zip(tracks_name, tracks_analysis_):
@@ -358,11 +358,11 @@ def get_playlist_analysis(spotipyUserAuth, playlist_id, segments=True, min_conf=
                        (and sections/beats/bars if asked)
     '''
 
-    tracks_df = extract_tracks(spotipyUserAuth, playlist_id)
+    tracks_df = get_tracks(spotipyUserAuth, playlist_id)
     tracks_name = list(tracks_df['name'])
     tracks_id = list(tracks_df['id'])
     # track_analysis returns a list of dictionary
-    tracks_analysis = extract_tracks_analysis(spotipyUserAuth, tracks_id)
+    tracks_analysis = get_tracks_analysis(spotipyUserAuth, tracks_id)
     playlist_analysis = {}
 
     for name_, track_analysis in zip(tracks_name, tracks_analysis):
@@ -447,7 +447,7 @@ def create_dataset(folder_analysis):
 def uri_to_id(uri_list):
     '''
     Parses ID from playlist URI and returns list of playlists' ID.
-    Playlist IDs get fed into extract_tracks or tracks_analysis
+    Playlist IDs get fed into get_tracks or tracks_analysis
 
     URI_list : list of playlist URIs
     returns : playlists' ID list
