@@ -28,7 +28,7 @@ Reduntant - tracks_analysis, track_genre
 
 '''
 import pandas as pd
-from pandas.io.json import json_normalize
+from pandas import json_normalize
 from pathlib import Path
 import re
 import spotipy
@@ -54,7 +54,7 @@ def spotipy_userauth(username, scope, client_id, client_secret, redirect_uri):
     username = username
     spotify = spotipy.Spotify(
         auth_manager=spotipy.SpotifyOAuth(
-            scope=scope, client_id=client_id,
+            username=username, scope=scope, client_id=client_id,
             client_secret=client_secret, redirect_uri=redirect_uri))
     return spotify
 
@@ -120,6 +120,48 @@ def get_pl_details(spotipyUserAuth, username):
     return pl_name, pl_id, pl_url, pltot_tracks
 
 
+def filtersort_playlists(pl_name, pl_id, pl_url, pltot_tracks, key_words=None, start=0, pl_range=10):
+    '''
+    Filters playlists based on provided keywords present in the name of the playlists or the
+    first n playlists present in the range provided.
+    Sorts ascending by total number of tracks in a playlist.
+
+    playlist name, id, url , total tracks : returned from the 'playlist_id_url' function.
+    Key_words = list of words (genre/terms). Default None.
+    pl_range = First 'n' number of playlists. Default 10
+
+    Returns: filtered and sorted list of tuples -
+             (playlist name, id, url and # of tracks).
+    '''
+    fil_pl_name = []  # Initiate filtered playlist name list
+    fil_pltot_tracks = []  # Initiate filtered total tracks list
+    fil_pl_id = []  # Initiate filtered playlist ID list
+    fil_pl_url = []  # Initiate filtered playlist URL list
+
+    if key_words is not None:
+
+        for i in range(len(pl_name)):
+
+            name = pl_name[i]
+            if any(word in name for word in key_words):
+                fil_pl_name.append(name)
+                fil_pltot_tracks.append(pltot_tracks[i])
+                fil_pl_id.append(pl_id[i])
+                fil_pl_url.append(pl_url[i])
+    else:
+
+        for i in range(start, pl_range):
+
+            fil_pl_name.append(pl_name[i])
+            fil_pltot_tracks.append(pltot_tracks[i])
+            fil_pl_id.append(pl_id[i])
+            fil_pl_url.append(pl_url[i])
+
+    sorted_pl = sorted(zip(fil_pltot_tracks, fil_pl_name, fil_pl_id, fil_pl_url), reverse=True)
+
+    return sorted_pl
+
+
 def get_tracks(spotipyUserAuth, playlist_id, allCol=False, showkeys=False):
     '''
     Extract track info of all tracks in a playlist.
@@ -148,7 +190,12 @@ def get_tracks(spotipyUserAuth, playlist_id, allCol=False, showkeys=False):
         for i in range(int(tracks['total'] / track_lim)):
 
             tracks = spotipyUserAuth.playlist_tracks(playlist_id, offset=(i + 1) * offset)
-            tracks_json = [tracks['items'][j]['track'] for j in range(len(tracks['items']))]
+
+            tracks_json = [
+                tracks['items'][j]['track']
+                for j in range(len(tracks['items']))
+                if tracks['items'][j]['track']]
+
             tracks_df_ = json_normalize(tracks_json, sep='_')
             tracks_dflist.append(tracks_df_)
 
@@ -455,5 +502,3 @@ def uri_to_id(uri_list):
     id_list = [uri_list[i].split(':')[-1] for i in range(len(uri_list))]
 
     return id_list
-
-
