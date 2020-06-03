@@ -180,7 +180,11 @@ def get_tracks(spotipyUserAuth, playlist_id, allCol=False, showkeys=False):
 
     tracks = spotipyUserAuth.playlist_tracks(playlist_id)
 
-    tracks_json = [tracks['items'][j]['track'] for j in range(len(tracks['items']))]
+    tracks_json = [
+        tracks['items'][j]['track']
+        for j in range(len(tracks['items']))
+        if tracks['items'][j]['track']]
+
     tracks_df = json_normalize(tracks_json, sep='_')
 
     if tracks['total'] > track_lim:
