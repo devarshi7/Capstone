@@ -27,12 +27,15 @@ Using USER's playlist: get_pl_details >  playlist_id_url > arg(get_playlists,)
 Reduntant - tracks_analysis, track_genre
 
 '''
+import demoji
 import pandas as pd
 from pandas import json_normalize
 from pathlib import Path
 import re
 import spotipy
 import spotipy.util as util
+
+demoji.download_codes()
 
 
 def spotipy_userauth2(username, scope, client_id, client_secret, redirect_uri):
@@ -420,6 +423,7 @@ def get_playlist_analysis(spotipyUserAuth, playlist_id, segments=True, min_conf=
 
         # remove any special characters from name (they may cause issues in filenaming)
         name_ = re.sub(r'[*|><:"?/]|\\', "", name_)
+        name_ = demoji.replace(name_)
         playlist_analysis[name_] = get_segments(track_analysis, segments=segments,
                                                 min_conf=min_conf, min_dur=min_dur, tempo=tempo,
                                                 sections=sections, beats=beats, bars=bars)
@@ -456,6 +460,7 @@ def get_folder_analysis(spotipyUserAuth, filsort_pl=None, pl_name_id=None, segme
 
             # remove any special characters from name (they may cause issues in filenaming)
             pl_name = re.sub(r'[*|><:"?/]|\\', "", p[1])
+            pl_name = demoji.replace(pl_name)
             folder_analysis[pl_name] = get_playlist_analysis(spotipyUserAuth, playlist_id=p[2],
                                                              segments=segments, tempo=tempo,
                                                              min_conf=min_conf, min_dur=min_dur,
@@ -464,7 +469,10 @@ def get_folder_analysis(spotipyUserAuth, filsort_pl=None, pl_name_id=None, segme
         for p in pl_name_id:
 
             # remove any special characters from name (they may cause issues in filenaming)
+
             pl_name = re.sub(r'[*|><:"?/]|\\', "", p[0])
+            pl_name = demoji.replace(pl_name)
+
             folder_analysis[pl_name] = get_playlist_analysis(spotipyUserAuth, playlist_id=p[1],
                                                              segments=segments, tempo=tempo,
                                                              min_conf=min_conf, min_dur=min_dur,
@@ -472,14 +480,14 @@ def get_folder_analysis(spotipyUserAuth, filsort_pl=None, pl_name_id=None, segme
     return folder_analysis
 
 
-def create_dataset(folder_analysis):
+def create_dataset(folder_analysis, path):
     '''
     Creates folders for each playlist, subfolders for all tracks in a playlist folder
     and track analysis dataframes as parquet files
     '''
     # Path to 'Dataset' dir
-    p = Path.cwd().parent.joinpath('Dataset')
-
+    # p = Path.cwd().parent.joinpath('Dataset')
+    p = path
     # list of dataframe names in output
     df_names = ['tempo', 'segments', 'sections', 'beats', 'bars']
 
