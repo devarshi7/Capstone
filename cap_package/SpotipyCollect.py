@@ -493,16 +493,3 @@ def create_dataset(folder_analysis):
             for k in range(len(j)):
 
                 j[k].to_parquet(path_.joinpath('{}_{}.parquet'.format(track, df_names[k])), engine='pyarrow')
-
-
-def uri_to_id(uri_list):
-    '''
-    Parses ID from playlist URI and returns list of playlists' ID.
-    Playlist IDs get fed into get_tracks or tracks_analysis
-
-    URI_list : list of playlist URIs
-    returns : playlists' ID list
-    '''
-    id_list = [uri_list[i].split(':')[-1] for i in range(len(uri_list))]
-
-    return id_list
