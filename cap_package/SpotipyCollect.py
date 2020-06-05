@@ -493,7 +493,7 @@ def create_dataset(folder_analysis, path):
 
     for fn, i in folder_analysis.items():
 
-        path_ = p.joinpath('{}'.format(fn))
+        path_ = p.joinpath('{}'.format(fn.strip()))
         path_.mkdir(exist_ok=True)
 
         for track, j in i.items():
