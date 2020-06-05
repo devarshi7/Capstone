@@ -84,34 +84,54 @@ def filterby_keyword(keywords, ex_list, playlists):
     return filtered
 
 
-def get_tracks_df(sp, playlistIDs, rem_dup=True, allCol=False):
+def get_tracks_df(sp, user_playlistIDs, rem_dup=True, allCol=False):
     '''
     Gets tracks from spotipfy API of the listed playlists and returns
     a single dataframe of tracks from all playlists
 
-    sp : spotipy auth object
-    playlistIDs : list of playlist IDs
+    playlistIDs : list of tuples - (user, playlist IDs)
     rem_dup : Default True. Remove duplicate entries of tracks
               if track name and artists' names match
 
     returns : dataframe fo tracks df
     '''
+    tracks_df = []
 
-    tracks_df = [get_tracks(sp, playlistIDs[i], allCol=True) for i in range(len(playlistIDs))]
+    for u in user_playlistIDs:
+
+        tr_df = get_tracks(sp, u[1], allCol=True)
+
+        user_col = [u[0]] * len(tr_df)
+        tr_df.insert(loc=len(tr_df.columns), column='user', value=user_col)
+
+        tracks_df.append(tr_df)
+
     pl_full_df = pd.concat(tracks_df, ignore_index=True)
 
     artists_list = get_artist_name(pl_full_df)
     pl_full_df.insert(loc=0, column='artists_name', value=artists_list)
 
     if rem_dup:
-        subdf = pl_full_df[pl_full_df.duplicated(subset=['name', 'artists_name'], keep='first')]
-        pl_full_df = pl_full_df.drop(subdf.index)
-        pl_full_df.reset_index(drop=True)
+        pl_full_df = pl_full_df.drop_duplicates(subset=['name', 'artists_name'], keep='first', ignore_index=True)
 
     if not allCol:
-        pl_full_df = pl_full_df[['name', 'id', 'artists_name']]
+        pl_full_df = pl_full_df[['name', 'id', 'artists_name', 'user']]
 
     return pl_full_df
+
+
+def user_plid_pair(user_ids, playlists):
+    '''
+    Creates a list of username/user id and playlist id tuples.
+    This will be used as the input for get_tracks_df
+
+    user_ids : list of user ids
+    playlists : list of tuples where 1st position has the playlist id
+    '''
+    paired = [x for x in zip(user_ids, playlists)]
+    user_plid = [(u[0], x[0]) for u in paired for x in u[1]]
+
+    return user_plid
 
 
 def get_tracks(spotipyUserAuth, playlist_id, allCol=False, showkeys=False):
