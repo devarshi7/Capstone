@@ -30,7 +30,6 @@ Reduntant - tracks_analysis, track_genre
 import demoji
 import pandas as pd
 from pandas import json_normalize
-from pathlib import Path
 import re
 import spotipy
 import spotipy.util as util
