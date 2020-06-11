@@ -392,7 +392,7 @@ def minmax_scale(x, mins, maxs, a=-1, b=1):
 
 def transform_dataset(dataset, timbre_min, timbre_max, num_seg=50):
     '''
-    Create input arrays to be fed into a model with label provided in tuples).
+    Create input arrays to be fed into a model.
 
     dataset : list of track segmentsdataframes
     timbre_min : List or numpy array of minimums of timbre values over the whole dataset
