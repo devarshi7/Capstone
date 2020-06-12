@@ -390,36 +390,54 @@ def minmax_scale(x, mins, maxs, a=-1, b=1):
     return rescaled_x
 
 
-def transform_dataset(dataset, timbre_min, timbre_max, num_seg=50):
+def transform_dataset(dataset, timbre_min, timbre_max, num_seg=50, bin_num=5):
     '''
     Create input arrays to be fed into a model.
+    A fixed number(num_seg) of segments are randomly chosen from each track(dataframe) and
+    timbre columns of these segments are scaled. The resulting dataframe is then converted
+    to a numpy array
 
-    dataset : list of track segmentsdataframes
+    Note - Segments dataframe will have missing indices since they have been passed through
+    a filter constricting them to minimum duration and confidence.
+    See get_segments in SpotifyCollect module for details.
+
+    dataset : list of track segments dataframes
     timbre_min : List or numpy array of minimums of timbre values over the whole dataset
     timbre_max : List or numpy array of maximums of timbre values over the whole dataset
     num_seg : Default : 50 - Number of segments to be taken for input.
+    bin_num : Number of bins for rows of segments dataframes are to be divided in
 
-    returns : data - list of tuples of input data arrays and (one-hot)encoded labels.
-              categories - array  of unique playlist name/labels in the data.
-              num_tracks -  number of tracks in each category/playlist
-              Currently only using segment arrays consisting of sequences pitch array and timbre values flattened for input.
-              Future edit should account for other features, i.e tempo and/or audio features from spotify.
+    returns : data - list of track input arrays.
     '''
+    if num_seg % bin_num != 0:
+        print('Make sure num_seg is divisible by bin_num to ensure equal number of segments are chosen from each bin')
 
+    bin_seg = int(num_seg / bin_num)
     timbre_ = ['timbre_{}'.format(i + 1) for i in range(12)]
 
     timbre_min = np.array(timbre_min)
     timbre_max = np.array(timbre_max)
 
     data_arrays = []
+
     for df in dataset:
 
-        # Scale timbre values
-        df[timbre_] = df[timbre_].apply(minmax_scale, args=(timbre_min, timbre_max), axis=1)
+        bin_size = int(len(df) / bin_num)
+        idx = list(df.index)
+
+        # make a list of randomly chosen 'bin_seg' number of segments from each bin
+        idx_list = []
+        for b in range(bin_num):
+
+            idx_list += random.sample(idx[b * bin_size: (b + 1) * bin_size], bin_seg)
+
+        idx_list.sort()
 
         # filter index of n -> num_seg randomly chosen segments
-        indx = random.sample(list(df.index), num_seg)
-        df_ = df.loc[indx]
+        df_ = df.loc[idx_list]
+
+        # Scale timbre values
+        df_[timbre_] = df_[timbre_].apply(minmax_scale, args=(timbre_min, timbre_max), axis=1)
 
         # Convert dataframe to numpy array
         segments = df_.to_numpy()
