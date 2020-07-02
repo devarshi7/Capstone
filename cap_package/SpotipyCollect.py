@@ -164,6 +164,27 @@ def filtersort_playlists(pl_name, pl_id, pl_url, pltot_tracks, key_words=None, s
     return sorted_pl
 
 
+def get_artist_name(tracks_df):
+    '''
+    Inserts artists_name column containg
+    names of artists in one string
+    '''
+
+    artists_list = []
+
+    for a in tracks_df.artists:
+
+        track_artists = []
+        for i in a:
+
+            track_artists.append(i['name'])
+
+        ta = ', '.join(map(str, track_artists))
+        artists_list.append(ta)
+
+    return artists_list
+
+
 def get_tracks(spotipyUserAuth, playlist_id, allCol=False, showkeys=False):
     '''
     Extract track info of all tracks in a playlist.
@@ -207,8 +228,11 @@ def get_tracks(spotipyUserAuth, playlist_id, allCol=False, showkeys=False):
 
         tracks_df = pd.concat(tracks_dflist, ignore_index=True)
 
+    artists_list = get_artist_name(tracks_df)
+    tracks_df.insert(loc=0, column='artists_name', value=artists_list)
+
     if allCol is False:
-        df = tracks_df[['name', 'id']]
+        df = tracks_df[['name', 'id', 'artists_name']]
     else:
         df = tracks_df
 
@@ -414,15 +438,21 @@ def get_playlist_analysis(spotipyUserAuth, playlist_id, segments=True, min_conf=
     tracks_df = get_tracks(spotipyUserAuth, playlist_id)
     tracks_name = list(tracks_df['name'])
     tracks_id = list(tracks_df['id'])
+    tracks_artist = list(tracks_df['artists_name'])
     # track_analysis returns a list of dictionary
     tracks_analysis = get_tracks_analysis(spotipyUserAuth, tracks_id)
     playlist_analysis = {}
 
-    for name_, track_analysis in zip(tracks_name, tracks_analysis):
+    for name_, track_artist, track_analysis in zip(tracks_name, tracks_artist, tracks_analysis):
 
         # remove any special characters from name (they may cause issues in filenaming)
+        track_artist = re.sub(r'[*|><:"?/]|\\', "", track_artist)
+        track_artist = demoji.replace(track_artist)
         name_ = re.sub(r'[*|><:"?/]|\\', "", name_)
         name_ = demoji.replace(name_)
+        # rename track name to make it unique by adding first 3 characters from
+        # the artist's name
+        name_ = name_ + '_' + track_artist[:3]
         playlist_analysis[name_] = get_segments(track_analysis, segments=segments,
                                                 min_conf=min_conf, min_dur=min_dur, tempo=tempo,
                                                 sections=sections, beats=beats, bars=bars)
@@ -485,7 +515,6 @@ def create_dataset(folder_analysis, path):
     and track analysis dataframes as parquet files
     '''
     # Path to 'Dataset' dir
-    # p = Path.cwd().parent.joinpath('Dataset')
     p = path
     # list of dataframe names in output
     df_names = ['tempo', 'segments', 'sections', 'beats', 'bars']
@@ -500,3 +529,106 @@ def create_dataset(folder_analysis, path):
             for k in range(len(j)):
 
                 j[k].to_parquet(path_.joinpath('{}_{}.parquet'.format(track, df_names[k])), engine='pyarrow')
+
+
+def get_tracks_features(spotipyUserAuth, tracksid, showkeys=False):
+    '''
+    spotipyUserAuth : spotipy object from 'spotipy_userauth' function.
+    trackids : list of track ids.
+    showkeys : Default False - prints dictionary keys
+    returns : list of lidictionaries containing track analysis
+    '''
+    tracks_features = spotipyUserAuth.audio_features(tracksid)
+
+    if showkeys is True:
+        print(tracks_features[0].keys())
+
+    return tracks_features
+
+
+def tracks_features_to_df(spotipyUserAuth, tracksid):
+    '''
+    Convert track analysis dictionaries into dateframes -
+    beats, bars, segments and sections.
+
+    tracksid : list of track ids. If a single trackid is provided, wrap it in a list.
+    spotipyUserAuth : Spotipy auth object. Required if using track id
+
+    Returns : track overview (dictionary) and dataframes of
+              beats, bars, segments and sections
+    '''
+
+    tracks_features = get_tracks_features(spotipyUserAuth, tracksid)
+
+    features_df = json_normalize(tracks_features)
+
+    return features_df
+
+
+def get_playlist_features(spotipyUserAuth, playlist_id, segments=True, min_conf=0.5,
+                          min_dur=0.25, tempo=True, sections=False, beats=False, bars=False):
+    '''
+    spotipyUserAuth : Spotipy auth object.
+    playlist_id : playlist id
+    segments and tempo: Default True. False if not needed
+    min_conf: minimum confidence to include a segment (range 0-1)
+    min_dur : minimum duration/length in secs to include a segment
+    sections/beats/bars: Default False. True if needs to be returned
+
+    Returns : a dict with key/value pairs for all tracks in the playlist
+                Keys: name of track
+                Value: list containing tempo and segment dataframe of the track
+                       (and sections/beats/bars if asked)
+    '''
+
+    tracks_df = get_tracks(spotipyUserAuth, playlist_id)
+
+    # track_analysis returns a list of dictionary
+    features_df = tracks_features_to_df(spotipyUserAuth, tracks_df['id'])
+    pl_features_df = pd.concat([tracks_df[['name', 'artists_name']], features_df], axis=1)
+
+    return pl_features_df
+
+
+def get_folder_features(spotipyUserAuth, filsort_pl=None, pl_name_id=None):
+    '''
+    Here, we will be using filtered and sorted output. Future edit should take user
+    playlist names and id.
+
+    spotipyUserAuth : Spotipy auth object.
+
+    filsort_pl : Default None. Uses 4-tuple output from filtersort_playlist function.
+    pl_name_id : Dafault None. In the case filsort_pl is not available,
+                 provide list of playlist name and id tuples
+
+    segments and tempo: Default True. False if not needed
+    min_conf: minimum confidence to include a segment (range 0-1)
+    min_dur : minimum duration/length in secs to include a segment
+    sections/beats/bars: Default False. True if needs to be returned
+
+    Returns: a dict with key/value pairs for all playlists in the folder.
+             Key : Name of the playlist (string)
+             Value : a dict of track analysis of all tracks from the playlist
+             (Values are returned from get_playlist_analysis)
+    '''
+
+    folder_features = {}
+
+    if filsort_pl is not None:
+        for p in filsort_pl:
+
+            # remove any special characters from name (they may cause issues in filenaming)
+            pl_name = re.sub(r'[*|><:"?/]|\\', "", p[1])
+            pl_name = demoji.replace(pl_name)
+            folder_features[pl_name] = get_playlist_features(spotipyUserAuth, playlist_id=p[2])
+    else:
+        for p in pl_name_id:
+
+            # remove any special characters from name (they may cause issues in filenaming)
+
+            pl_name = re.sub(r'[*|><:"?/]|\\', "", p[0])
+            pl_name = demoji.replace(pl_name)
+
+            folder_features[pl_name] = get_playlist_features(spotipyUserAuth, playlist_id=p[1])
+
+    return folder_features
