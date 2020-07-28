@@ -396,8 +396,7 @@ def get_segments(track_analysis, segments=True, min_conf=0.5, min_dur=0.25, temp
 
     trackoverview, beats_df, bars_df, segments_df, sections_df = track_anlaysis_to_df(track_analysis=track_analysis)
 
-    if tempo:
-        tempo_df = pd.DataFrame({'tempo': [trackoverview['tempo']]})
+    tempo_df = pd.DataFrame({'tempo': [trackoverview['tempo']]})
 
     # Introducing start_minute column for more readability of start time in min:sec format
     start_minute = segments_df['start'].map(convert_time)
@@ -460,7 +459,7 @@ def get_playlist_analysis(spotipyUserAuth, playlist_id, segments=True, min_conf=
 
 
 def get_folder_analysis(spotipyUserAuth, filsort_pl=None, pl_name_id=None, segments=True, min_conf=0.5,
-                        min_dur=0.25, tempo=True, sections=False, beats=False, bars=False):
+                        min_dur=0.25, sections=True, tempo=False, beats=False, bars=False):
     '''
     Here, we will be using filtered and sorted output. Future edit should take user
     playlist names and id.

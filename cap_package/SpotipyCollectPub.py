@@ -1,9 +1,7 @@
 from cap_package import SpotipyCollect as sc
 import demoji
-import numpy as np
 import pandas as pd
 from pandas import json_normalize
-import random
 import re
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
@@ -289,3 +287,5 @@ def user_plid_pair(user_ids, playlists):
     user_plid = [(u[0], x[0]) for u in paired for x in u[1]]
 
     return user_plid
+
+

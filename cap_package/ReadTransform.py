@@ -9,7 +9,7 @@ from sklearn.preprocessing import OneHotEncoder
 # --------------------------------------------------------------------------------
 
 
-def read_dataset(path_, segments=True, tempo=False):
+def read_dataset(path_, segments=True, sections=False, tempo=False):
     '''
     Read analysis(dataframes) dataset stored as parquet files.
     Use this when only track info needs to be retained and not playlist labels
@@ -34,6 +34,10 @@ def read_dataset(path_, segments=True, tempo=False):
         if segments:
             segments_list = [(re.sub('_segments.parquet', '', s.name), pd.read_parquet(s)) for s in pl.glob('*_segments.parquet')]
             pl_info.append(segments_list)
+
+        if sections:
+            sections_list = [(re.sub('_sections.parquet', '', s.name), pd.read_parquet(s)) for s in pl.glob('*_sections.parquet')]
+            pl_info.append(sections_list)
 
         dataset.append(pl_info)
 
@@ -162,6 +166,98 @@ def transform_dataset(dataset, timbre_min, timbre_max, num_seg=50, bin_num=5):
 
     return data_arrays
 
+
+def get_segsec_stats(tracks_seg, tracks_sec):
+    '''
+    Create input arrays to be fed into a model.
+    A fixed number(num_seg) of segments are randomly chosen from each track(dataframe) and
+    timbre columns of these segments are scaled. The resulting dataframe is then converted
+    to a numpy array
+
+    Note - Segments dataframe will have missing indices since they have been passed through
+    a filter constricting them to minimum duration and confidence.
+    See get_segments in SpotifyCollect module for details.
+
+    dataset : list of track segments dataframes
+    timbre_min : List or numpy array of minimums of timbre values over the whole dataset
+    timbre_max : List or numpy array of maximums of timbre values over the whole dataset
+    num_seg : Default : 50 - Number of segments to be taken for input.
+    bin_num : Number of bins for rows of segments dataframes are to be divided in
+
+    returns : data - list of track input arrays.
+    '''
+
+    sec_stat = []
+    seg_stat = []
+
+    keys = [x for x in range(12)]
+    keys_column = ['key_{:0>2d}'.format(i + 1) for i in range(12)]
+    enc = OneHotEncoder(categories=[keys])
+
+    for t in zip(tracks_seg, tracks_sec):
+
+        kl = {}
+        tsec_stat = {}
+        tseg_stat = {}
+        seg = t[0]
+        sec = t[1]
+
+        top5 = sec.duration.sort_values(ascending=False)[:5].index.sort_values().array
+
+        for i in top5:
+
+            tsec_stat['sec_{}'.format(i)] = \
+                seg[(seg['start'] >= sec.start[i]) & (seg['start'] < sec.start[i] + sec.duration[i])] \
+                .loc[:, 'timbre_01': 'timbre_12'] \
+                .mean()
+            kl['sec_{}'.format(i)] = sec.iloc[i][['key', 'loudness']]
+
+        tsec_stat = pd.DataFrame.from_dict(tsec_stat, orient='index')
+        kl = pd.DataFrame.from_dict(kl, orient='index')
+        kl = kl.astype({'key': 'int32'})
+        X = np.array(kl.key).reshape(-1, 1)
+        enc_keys = enc.fit_transform(X).toarray()
+        kl[keys_column] = pd.DataFrame(enc_keys, index=kl.index)
+        kl = kl.drop(columns=['key'])
+
+        nulls = [i for i, x in tsec_stat.iterrows() if x.isnull().sum() > 0]
+        if nulls:
+            indices = list(set(tsec_stat.index[:len(top5)]) - set(nulls))
+            val = tsec_stat.loc[indices].mean()
+            for idx in nulls:
+                tsec_stat.loc[idx] = val
+                tsec_stat.rename(index={idx: '{}_upd'.format(idx)}, inplace=True)
+                kl.rename(index={idx: '{}_upd'.format(idx)}, inplace=True)
+
+        if len(top5) < 5:
+            index = ['sec_avg{}'.format(j) for j in range(5 - len(top5))]
+
+            top_avg = tsec_stat.iloc[:len(top5)].mean()
+            values = [top_avg for j in range(5 - len(top5))]
+            lines = pd.DataFrame(values, index=index)
+            tsec_stat = pd.concat(
+                [tsec_stat.iloc[:int(len(top5) / 2)], lines, tsec_stat.iloc[int(len(top5) / 2):]])
+
+            filler = kl.iloc[int(len(top5) / 2)]
+            values_ = [filler for j in range(5 - len(top5))]
+            lines_ = pd.DataFrame(values_, index=index)
+            kl = pd.concat(
+                [kl.iloc[:int(len(top5) / 2)], lines_, kl.iloc[int(len(top5) / 2):]])
+
+        tsec = pd.concat([kl, tsec_stat], axis=1)
+        sec_stat.append(tsec)
+
+        tseg_stat['min'] = seg.loc[:, 'timbre_01': 'timbre_12'].min()
+        tseg_stat['max'] = seg.loc[:, 'timbre_01': 'timbre_12'].max()
+        tseg_stat['mean'] = seg.loc[:, 'timbre_01': 'timbre_12'].mean()
+        tseg_stat['std'] = seg.loc[:, 'timbre_01': 'timbre_12'].std()
+        tseg_stat['skewness'] = seg.loc[:, 'timbre_01': 'timbre_12'].skew()
+        tseg_stat['kurtosis'] = seg.loc[:, 'timbre_01': 'timbre_12'].kurt()
+
+        tseg_stat = pd.DataFrame.from_dict(tseg_stat, orient='index')
+        seg_stat.append(tseg_stat)
+
+    return seg_stat, sec_stat
 
 def encode_label(data_labels):
 
