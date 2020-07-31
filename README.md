@@ -14,14 +14,14 @@ Spotify/EchoNest provides [audio features](https://developer.spotify.com/documen
 
 #### Organization of code
 
-* Cap_package : Helper functions to -
-    *request user playlists and tracks using spotipy library 
-    *requesting audio analysis and audio features of tracks using spotipy
-    *extracting and filtering pandas dataframes converted from json objects
-    *saving dataset locally
+* Cap_package : Helper functions to 
+  * request user playlists and tracks using spotipy library 
+  * requesting audio analysis and audio features of tracks using spotipy
+  * extracting and filtering pandas dataframes converted from json objects
+  * saving dataset locally
     
-* Collect and Data Wrangling : Jupyter notebooks for -
-    *Requesting and saving audio analysis and audio features of the dataset
-    *EDA
+* Collect and Data Wrangling : Jupyter notebooks for 
+  * Requesting and saving audio analysis and audio features of the dataset
+  * EDA
    
 * Model : Jupyter notebooks for modeling
