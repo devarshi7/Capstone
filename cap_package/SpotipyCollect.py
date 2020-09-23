@@ -39,8 +39,28 @@ demoji.download_codes()
 
 def spotipy_userauth2(username, scope, client_id, client_secret, redirect_uri):
     '''
-    Creates authorization token and returns spotipy object.
-    util prompt does not refresh token and maybe deprecated in future.
+    Implements Authorization Code Flow for Spotify’s OAuth implementation.
+
+    Util prompt does not refresh token and maybe deprecated in future.
+
+    Parameters
+    ----------
+    username : str
+        username of current client
+    scope : str
+        the desired scope of the request
+    client_id : str
+        client id of the app
+    client_secret : str
+        client secret of the app
+    redirect_uri : str
+        redirect URI of the app
+
+
+    Returns
+    -------
+    sp : spotipy object
+        spotipy object with access to all Spotify Web API endpoints
     '''
     token = util.prompt_for_user_token(username=username, scope=scope, client_id=client_id,
                                        client_secret=client_secret, redirect_uri=redirect_uri)
@@ -51,7 +71,27 @@ def spotipy_userauth2(username, scope, client_id, client_secret, redirect_uri):
 
 def spotipy_userauth(username, scope, client_id, client_secret, redirect_uri):
     '''
-    Creates authorization token and returns spotipy object. Token automatically refreshes.
+    Implements Authorization Code Flow for Spotify’s OAuth implementation.
+
+    Token automatically refreshes.
+
+    Parameters
+    ----------
+    username : str
+        username of current client
+    scope : str
+        the desired scope of the request
+    client_id : str
+        client id of the app
+    client_secret : str
+        client secret of the app
+    redirect_uri : str
+        redirect URI of the app
+
+    Returns
+    -------
+    sp : spotipy object
+        spotipy object with access to all Spotify Web API endpoints
     '''
     username = username
     spotify = spotipy.Spotify(
@@ -65,10 +105,17 @@ def get_playlists(spotipyUserAuth, username):
     '''
     Extract user's playlists' details
 
-    spotipyUserAuth : spotipy object from 'spotipy_userauth' function.
-    username : username(string)
+    Parameters
+    ----------
+    spotipyUserAuth : spotipy object
+        returned by 'spotipy_userauth' function.
+    username : str
+        username of the user
 
-    Returns a list of dictionary containing details of individual playlists.
+    Returns
+    -------
+    playlistdetails : List[Dict]
+        lists of dictionary containing details of individual playlists.
     '''
     playlists = spotipyUserAuth.user_playlists(username)
     playlistsdetails = playlists['items']
@@ -79,12 +126,17 @@ def get_playlists(spotipyUserAuth, username):
 def playlists_id_url(playlistsdetails):
     '''
     Collects and returns lists of playlist names, IDs, URLs,
-    and number of tracks present in a playlist
+    and number of tracks present in a playlist.
 
-    playlistsdetails : list of dictionary containing details of individual
-                       playlist. Obtained from spotipy.user_playlists.
+    Parameters
+    ----------
+    playlistsdetails : List[Dict]
+        details of individual playlist obtained from spotipy.user_playlists endpoint.
 
-    Returns :  list of playlists' total tracks, url, and ids.
+    Returns
+    -------
+    pl_name, pl_id, pl_url, pltot_tracks : List
+        list of playlists' name, ids, url, and total number of tracks in a playlist.
     '''
 
     pl_name = []  # Initiate playlist name list
@@ -109,11 +161,19 @@ def playlists_id_url(playlistsdetails):
 
 def get_pl_details(spotipyUserAuth, username):
     '''
-    Get playlist details such as name, id, url and total tracks
-    username : username (string)
+    Get playlist details such as name, id, url and total tracks.
 
-    returns : lists of - all playlist names, all ids, all urls,
-              and list of number of tracks in a playlist
+    Parameters
+    ----------
+    spotipyUserAuth : spotipy object
+        returned by 'spotipy_userauth' function.
+    username : str
+        username of the user
+
+    Returns
+    -------
+    pl_name, pl_id, pl_url, pltot_tracks : List
+        list of playlists' name, ids, url and total number of tracks in a playlist.
     '''
     pl_details = get_playlists(spotipyUserAuth, username)
 
@@ -124,16 +184,27 @@ def get_pl_details(spotipyUserAuth, username):
 
 def filtersort_playlists(pl_name, pl_id, pl_url, pltot_tracks, key_words=None, start=0, pl_range=10):
     '''
-    Filters playlists based on provided keywords present in the name of the playlists or the
+    Filters playlists.
+
+    Filters based on provided keywords present in the name of the playlists or the
     first n playlists present in the range provided.
     Sorts ascending by total number of tracks in a playlist.
+    Playlist name, id, url and total tracks to be passed are
+    returned from the ******'playlist_id_url'***** function.
 
-    playlist name, id, url , total tracks : returned from the 'playlist_id_url' function.
-    Key_words = list of words (genre/terms). Default None.
-    pl_range = First 'n' number of playlists. Default 10
+    pl_name, pl_id, pl_url : str
+        playlist name, id and url respectively
+    pltot_tracks : int
+        total number of tracks
+    Key_words : List[str]
+        List of genre/terms to filter. Default None.
+    pl_range : int, optional
+        First 'n' number of playlists. Default 10
 
-    Returns: filtered and sorted list of tuples -
-             (playlist name, id, url and # of tracks).
+    Returns
+    -------
+    sorted_pl: List[tuple]
+        list of filtered and sorted tuples (playlist name, id, url and # of tracks).
     '''
     fil_pl_name = []  # Initiate filtered playlist name list
     fil_pltot_tracks = []  # Initiate filtered total tracks list
@@ -166,8 +237,21 @@ def filtersort_playlists(pl_name, pl_id, pl_url, pltot_tracks, key_words=None, s
 
 def get_artist_name(tracks_df):
     '''
-    Inserts artists_name column containg
-    names of artists in one string
+    Inserts artists_name column containg names of artists in one string.
+
+    Parameters
+    ----------
+    tracks_df : pandas.DataFrame
+        Index : RangeIndex
+        Columns :
+            Name : artists, dtype : str
+            Name : name, dtype : str
+        track_df should atleast contain the columns 'name' and 'artists'.
+
+    Returns
+    -------
+    artists_list : List[str]
+        List of concatenated artists' names for a track
     '''
 
     artists_list = []
@@ -189,15 +273,30 @@ def get_tracks(spotipyUserAuth, playlist_id, allCol=False, showkeys=False):
     '''
     Extract track info of all tracks in a playlist.
 
-    spotipyUserAuth : spotipy object from 'spotipy_userauth' function.
-    playlist_id : playlist id can be obtained from  'get_playlists'
-                  or 'filtersort_playlists' function.
-    allCol : Default False - Returns a dataframe with only track name and id.
-             True - Returns a complete dataframe of track details
-                    with all columns.
-    showkeys : Prints all column names/keys of the complete dataframe
+    Parameters
+    ----------
+    spotipyUserAuth : spotipy object
+        returned by 'spotipy_userauth' function.
+    playlist_id : str
+        playlist id can be obtained from  'get_playlists' or 'filtersort_playlists' function.
+    allCol : bool, optional
+        Default False - Returns a dataframe with only track name, artists names and id.
+                True - Returns a complete dataframe of track details
+                        with all columns.
+    showkeys : bool, optional
+        True - Prints all column names/keys of the complete dataframe
+        Default False
 
-    Returns: Dataframe with track info (Default - name and id)
+    Returns
+    -------
+    df : pandas.Dataframe
+        Index : RangeIndex
+        (Relevant) Columns :
+                    Name : artists_name, dtype : str
+                    Name : name, dtype : str
+                    Name : id, dtype : str
+    See https://developer.spotify.com/documentation/web-api/reference/playlists/get-playlists-tracks/ 
+    for more information on returned track object columns/keys
     '''
     track_lim = 100
 
@@ -244,11 +343,22 @@ def get_tracks(spotipyUserAuth, playlist_id, allCol=False, showkeys=False):
 
 def track_genre(spotipyUserAuth, album_ids):
     '''
-    NOTE : Spotify API does not return ANY Genre information, just empty lists.
-    spotipyUserAuth : spotipy object from 'spotipy_userauth' function.
-    album_ids : list of album ids. If a single album id is provided, it needs to be wrapped
-                in a list.
-    Returns : List of tuples of Name and Genre of albums
+    Get track genre info from parent album genre
+
+    NOTE : Spotify API does not return ANY Genre information in most cases, just empty lists.
+           Use this function only for checking and experimenting.
+
+    Parameters
+    ----------
+    spotipyUserAuth : spotipy object
+        returned by 'spotipy_userauth' function.
+    album_ids : List[str]
+        list of album ids. If a single album id is provided, it needs to be wrapped in a list.
+
+    Returns
+    -------
+    album_genre : List[tuple(str,str)]
+        List of tuples of Name and Genre of albums
     '''
     # To remove any repeating album ids
     album_ids = list(set(album_ids))
@@ -283,13 +393,28 @@ def track_genre(spotipyUserAuth, album_ids):
 
     return album_genre
 
+# --------------------------------------------------------------------------------
+#  Functions for retrieving track analysis of the dataset
+# --------------------------------------------------------------------------------
+
 
 def get_tracks_analysis(spotipyUserAuth, tracksid, showkeys=False):
     '''
-    spotipyUserAuth : spotipy object from 'spotipy_userauth' function.
-    trackids : list of track ids.
-    showkeys : Default False - prints dictionary keys
-    returns : list of dictionaries containing track analysis
+    Fetches track analysis of tracks
+
+    Parameters
+    ----------
+    spotipyUserAuth : spotipy object
+        returned by 'spotipy_userauth' function.
+    trackids : List[str]
+        list of track ids.
+    showkeys : bool, optional
+        Default False. True - prints dictionary keys
+
+    Returns
+    -------
+    tracks_analysis : List[Dict]
+        list of dictionaries containing track analysis
     '''
     tracks_analysis = [spotipyUserAuth.audio_analysis(tracksid[j])
                        for j in range(len(tracksid))]
@@ -300,18 +425,66 @@ def get_tracks_analysis(spotipyUserAuth, tracksid, showkeys=False):
     return tracks_analysis
 
 
-def track_anlaysis_to_df(trackid=None, spotipyUserAuth=None,
-                         track_analysis=None):
+def tracks_analysis(spotipyUserAuth, playlist_id):
+    '''Fetches track analysis for tracks in a playlist
+
+    User functions get_tracks and get_track_analysis used here.
+
+    Parameters
+    ----------
+    spotipyUserAuth : spotipy object
+        returned by 'spotipy_userauth' function.
+    playlist_id : str
+
+    Returns
+    -------
+    analysis_dict : Dict
+         key - track name (str) : value - track analysis(json object)
+    '''
+    # get_tracks returns a dataframe
+    tracks_df = get_tracks(spotipyUserAuth, playlist_id)
+    tracks_name = list(tracks_df['name'])
+    tracks_id = list(tracks_df['id'])
+
+    # track_analysis returns a list of dictionary
+    tracks_analysis_ = get_tracks_analysis(spotipyUserAuth, tracks_id)
+    analysis_dict = {}
+
+    for name_, track_analysis in zip(tracks_name, tracks_analysis_):
+
+        analysis_dict[name_] = track_analysis
+
+    return analysis_dict
+
+
+def track_anlaysis_to_df(trackid=None, spotipyUserAuth=None, track_analysis=None):
     '''
     Convert track analysis dictionaries into dateframes -
     beats, bars, segments and sections.
 
-    trackid : Spotify track id
-    spotipyUserAuth : Spotipy auth object. Required if using track id
-    track_analysis : Track analysis dictionary of a single track if trackid is not provided
+    Parameters
+    ----------
+    spotipyUserAuth : spotipy object, optional
+        Default - None. Or returned by 'spotipy_userauth' function.
+    trackid : str, optional
+        Spotify track id
+    track_analysis : Dict, optional
+        Default - None. Or track analysis dictionary of a single track if trackid is not provided
 
-    Returns : track overview (dictionary) and dataframes of
-              beats, bars, segments and sections
+    Either need to provide track ids or track analysis for a single track
+
+    Returns
+    -------
+    trackoverview : Dict
+        track info.
+
+    beats_df, bars_df, segment_df, sections_df : pandas.DataFrame
+        Audio Analysis returned from spotify is converted from json to a dataframe for more readability
+        and for ease of transformation.
+
+    Note
+    ----
+    See https://developer.spotify.com/documentation/web-api/reference/tracks/get-audio-analysis/
     '''
 
     if trackid is not None:
@@ -332,7 +505,17 @@ def track_anlaysis_to_df(trackid=None, spotipyUserAuth=None,
 
 
 def convert_time(secs):
-    ''' COnverts seconds to mins. Format mm:ss '''
+    ''' Converts seconds to mins. Format mm:ss
+
+    Parameters
+    ----------
+    secs : int or Null
+
+    Returns
+    -------
+    mm : ss : ms : str
+        time as a string in the above format
+    '''
 
     if pd.isna(secs):
         return float('NaN')
@@ -349,49 +532,38 @@ def convert_time(secs):
         return '{:0>2d}:{:0>2d}:{:0>2d}'.format(minutes, seconds, milisecs)
 
 
-def tracks_analysis(spotipyUserAuth, playlist_id):
-    '''
-    spotipyUserAuth : Spotipy auth object.
-    playlist_id : playlist id
-    *user functions get_tracks and get_track_analysis used here.
-
-    Returns : a list of tuples : (name of the track (string), tuple containing trackoverview (dictionary),
-                            beats_df, bars_df, segments_df, sections_df)
-    '''
-    # get_tracks returns a dataframe
-    tracks_df = get_tracks(spotipyUserAuth, playlist_id)
-    tracks_name = list(tracks_df['name'])
-    tracks_id = list(tracks_df['id'])
-
-    # track_analysis returns a list of dictionary
-    tracks_analysis_ = get_tracks_analysis(spotipyUserAuth, tracks_id)
-    analysis_dict = {}
-
-    for name_, track_analysis in zip(tracks_name, tracks_analysis_):
-
-        analysis_dict[name_] = track_analysis
-
-    return analysis_dict
-
-
 def get_segments(track_analysis, segments=True, min_conf=0.5, min_dur=0.25, tempo=True,
                  sections=False, beats=False, bars=False):
     '''
-    Get segments of tracks on a playlist with conditions on  minimum confidence
-    and minimum duration of a segment. Since we are currently interested in tempo
-    of a track we will be returning that value as well.
+    Get segments of tracks on a playlist with conditions.
 
-    trackanalysis: track analysis (dict) of a track (obtained from tracks_analysis dict)
-    segments: Default True. False if segments dataframe is not needed
-    min_conf: minimum confidence to include a segment (range 0-1)
-    min_dur : minimum duration/length in secs to include a segment
-    tempo: Default True. False if tempo value is not needed
-    sections: Default False. True if sections dataframe needs to be returned
-    beats: Default False. True if beats dataframe needs to be returned
-    bars: Default False. True if bars dataframe needs to be returned
+    Restrictions on  minimum confidence and minimum duration of a segment can be set.
 
-    Returns: (in this order) tempo and segments dataframe (sections_df, beats_df, bars_df  as asked)
-              of a single track
+    Parameters
+    ----------
+    track_analysis: Dict
+        track analysis of a track (obtained from tracks_analysis dict)
+    segments: bool, optional
+        Default True. False if segments dataframe is not needed
+    min_conf: Float
+        minimum confidence to include a segment (range 0-1)
+    min_dur : Float
+        minimum duration/length in secs to include a segment.
+        Segments tend to be of very small time intervals, most under a second.
+    tempo: bool, optional
+        Default True. False if tempo value needs to be returned
+    sections: bool, optional
+        Default False. True if sections dataframe needs to be returned
+    beats: bool, optional
+        Default False. True if beats dataframe needs to be returned
+    bars: bool, optional
+        Default False. True if bars dataframe needs to be returned
+
+    Returns
+    -------
+    output : List[pandas.DataFrame]
+    For a single track (in this order) - tempo and segments dataframe
+    sections_df, beats_df, bars_df  as required
     '''
 
     trackoverview, beats_df, bars_df, segments_df, sections_df = track_anlaysis_to_df(track_analysis=track_analysis)
@@ -421,26 +593,45 @@ def get_segments(track_analysis, segments=True, min_conf=0.5, min_dur=0.25, temp
 def get_playlist_analysis(spotipyUserAuth, playlist_id, segments=True, min_conf=0.5,
                           min_dur=0.25, tempo=True, sections=False, beats=False, bars=False):
     '''
-    spotipyUserAuth : Spotipy auth object.
-    playlist_id : playlist id
-    segments and tempo: Default True. False if not needed
-    min_conf: minimum confidence to include a segment (range 0-1)
-    min_dur : minimum duration/length in secs to include a segment
-    sections/beats/bars: Default False. True if needs to be returned
+    Gets audio analysis for all tracks in a playlist.
 
-    Returns : a dict with key/value pairs for all tracks in the playlist
-                Keys: name of track
-                Value: list containing tempo and segment dataframe of the track
-                       (and sections/beats/bars if asked)
+    Parameters
+    ----------
+    spotipyUserAuth : spotipy object
+        returned by 'spotipy_userauth' function.
+    playlist_id : str
+        Spotify playlist id
+    segments: bool, optional
+        Default True. False if segments dataframe is not needed
+    min_conf: Float
+        minimum confidence to include a segment (range 0-1)
+    min_dur : Float
+        minimum duration/length in secs to include a segment.
+        Segments tend to be of very small time intervals, most under a second.
+    tempo: bool, optional
+        Default True. False if tempo value needs to be returned
+    sections: bool, optional
+        Default False. True if sections dataframe needs to be returned
+    beats: bool, optional
+        Default False. True if beats dataframe needs to be returned
+    bars: bool, optional
+        Default False. True if bars dataframe needs to be returned
+
+    Returns
+    -------
+    playlist_analysis : Dict
+        Keys: name of track from playlist (str)
+        Value: List containing tempo and segment dataframe
+               (and sections/beats/bars if asked)of the track
+               Values here are returned from get_segments
     '''
-
+    playlist_analysis = {}
     tracks_df = get_tracks(spotipyUserAuth, playlist_id)
     tracks_name = list(tracks_df['name'])
     tracks_id = list(tracks_df['id'])
     tracks_artist = list(tracks_df['artists_name'])
     # track_analysis returns a list of dictionary
     tracks_analysis = get_tracks_analysis(spotipyUserAuth, tracks_id)
-    playlist_analysis = {}
 
     for name_, track_artist, track_analysis in zip(tracks_name, tracks_artist, tracks_analysis):
 
@@ -461,24 +652,41 @@ def get_playlist_analysis(spotipyUserAuth, playlist_id, segments=True, min_conf=
 def get_folder_analysis(spotipyUserAuth, filsort_pl=None, pl_name_id=None, segments=True, min_conf=0.5,
                         min_dur=0.25, sections=True, tempo=False, beats=False, bars=False):
     '''
-    Here, we will be using filtered and sorted output. Future edit should take user
-    playlist names and id.
+    Gets audio analysis for all tracks in a playlist, for all playlists.
+    Here, we will be using either a filtered and sorted list of playlists
+    or a list of user playlist name and id tuples.
 
-    spotipyUserAuth : Spotipy auth object.
+    Parameters
+    ----------
+    spotipyUserAuth : spotipy object
+        returned by 'spotipy_userauth' function.
+    filsort_pl : List[tuple], optional
+        Default None. Uses 4-tuple output from filtersort_playlist function.
+    pl_name_id : List[tuple], optional
+        Dafault None. In the case filsort_pl is not available,
+        provide a list of playlist name and id tuples
+    segments:  bool, optional
+        Default True. False if segments dataframe is not needed
+    min_conf: Float
+        minimum confidence to include a segment (range 0-1)
+    min_dur : Float
+        minimum duration/length in secs to include a segment.
+        Segments tend to be of very small time intervals, most under a second.
+    tempo: bool, optional
+        Default True. False if tempo value needs to be returned
+    sections: bool, optional
+        Default False. True if sections dataframe needs to be returned
+    beats: bool, optional
+        Default False. True if beats dataframe needs to be returned
+    bars: bool, optional
+        Default False. True if bars dataframe needs to be returned
 
-    filsort_pl : Default None. Uses 4-tuple output from filtersort_playlist function.
-    pl_name_id : Dafault None. In the case filsort_pl is not available,
-                 provide list of playlist name and id tuples
-
-    segments and tempo: Default True. False if not needed
-    min_conf: minimum confidence to include a segment (range 0-1)
-    min_dur : minimum duration/length in secs to include a segment
-    sections/beats/bars: Default False. True if needs to be returned
-
-    Returns: a dict with key/value pairs for all playlists in the folder.
-             Key : Name of the playlist (string)
-             Value : a dict of track analysis of all tracks from the playlist
-             (Values are returned from get_playlist_analysis)
+    Returns
+    -------
+    folder_analysis : Dict
+         Key : Name of the playlist (string)
+         Value : a dict of track analysis of all tracks from the playlist
+                 Values here are returned from get_playlist_analysis
     '''
 
     folder_analysis = {}
@@ -510,8 +718,17 @@ def get_folder_analysis(spotipyUserAuth, filsort_pl=None, pl_name_id=None, segme
 
 def create_dataset(folder_analysis, path):
     '''
-    Creates folders for each playlist, subfolders for all tracks in a playlist folder
-    and track analysis dataframes as parquet files
+    Creates dataset as folders for each playlist, subfolders for all tracks in a playlist folder
+    and track analysis dataframes as parquet files.
+
+
+    Parameters
+    ----------
+    folder_analysis : Dict
+        audio analysis for all tracks in all playlists
+        dict returned by get_folder_analysis
+    path : str
+        path to store the dataset
     '''
     # Path to 'Dataset' dir
     p = path
@@ -530,12 +747,29 @@ def create_dataset(folder_analysis, path):
                 j[k].to_parquet(path_.joinpath('{}_{}.parquet'.format(track, df_names[k])), engine='pyarrow')
 
 
+# --------------------------------------------------------------------------------
+#  Functions for retrieving track features of the dataset
+# --------------------------------------------------------------------------------
+
+
 def get_tracks_features(spotipyUserAuth, tracksid, showkeys=False):
     '''
-    spotipyUserAuth : spotipy object from 'spotipy_userauth' function.
-    trackids : list of track ids.
-    showkeys : Default False - prints dictionary keys
-    returns : list of lidictionaries containing track analysis
+    Gets track features for multiple tracks.
+
+    Parameters
+    ----------
+    spotipyUserAuth : spotipy object
+        returned by 'spotipy_userauth' function.
+    trackids : List[str]
+        list of track ids. Wrap a track id in a list if only a single track is present.
+    showkeys : bool, optional
+        Default False - prints dictionary keys
+
+    Returns
+    -------
+    track_features : List[Dict]
+        list of dictionaries containing track features of all tracks
+        in the track id list
     '''
     tracks_features = spotipyUserAuth.audio_features(tracksid)
 
@@ -547,42 +781,39 @@ def get_tracks_features(spotipyUserAuth, tracksid, showkeys=False):
 
 def tracks_features_to_df(spotipyUserAuth, tracksid):
     '''
-    Convert track analysis dictionaries into dateframes -
-    beats, bars, segments and sections.
+    Convert track feature dictionary into dateframe.
 
-    tracksid : list of track ids. If a single trackid is provided, wrap it in a list.
-    spotipyUserAuth : Spotipy auth object. Required if using track id
+    Parameters
+    ----------
+    spotipyUserAuth : spotipy object
+        returned by 'spotipy_userauth' function.
+    trackids : List[str]
+        list of track ids. If a single trackid is present, wrap it in a list.
 
-    Returns : track overview (dictionary) and dataframes of
-              beats, bars, segments and sections
+    Returns
+    -------
+    features_df : pandas.DataFrame
     '''
 
     tracks_features = get_tracks_features(spotipyUserAuth, tracksid)
-
     features_df = json_normalize(tracks_features)
-
     return features_df
 
 
-def get_playlist_features(spotipyUserAuth, playlist_id, segments=True, min_conf=0.5,
-                          min_dur=0.25, tempo=True, sections=False, beats=False, bars=False):
-    '''
-    spotipyUserAuth : Spotipy auth object.
-    playlist_id : playlist id
-    segments and tempo: Default True. False if not needed
-    min_conf: minimum confidence to include a segment (range 0-1)
-    min_dur : minimum duration/length in secs to include a segment
-    sections/beats/bars: Default False. True if needs to be returned
+def get_playlist_features(spotipyUserAuth, playlist_id):
+    '''Gets features for all tracks in a playlist.
 
-    Returns : a dict with key/value pairs for all tracks in the playlist
-                Keys: name of track
-                Value: list containing tempo and segment dataframe of the track
-                       (and sections/beats/bars if asked)
+    Parameters
+    ----------
+    spotipyUserAuth : spotipy object
+        returned by 'spotipy_userauth' function.
+    playlist_id : str
+
+    Returns : pandas.DataFrame
+              Rows represent tracks and colummns represent features
     '''
 
     tracks_df = get_tracks(spotipyUserAuth, playlist_id)
-
-    # track_analysis returns a list of dictionary
     features_df = tracks_features_to_df(spotipyUserAuth, tracks_df['id'])
     pl_features_df = pd.concat([tracks_df[['name', 'artists_name']], features_df], axis=1)
 
@@ -600,15 +831,9 @@ def get_folder_features(spotipyUserAuth, filsort_pl=None, pl_name_id=None):
     pl_name_id : Dafault None. In the case filsort_pl is not available,
                  provide list of playlist name and id tuples
 
-    segments and tempo: Default True. False if not needed
-    min_conf: minimum confidence to include a segment (range 0-1)
-    min_dur : minimum duration/length in secs to include a segment
-    sections/beats/bars: Default False. True if needs to be returned
-
     Returns: a dict with key/value pairs for all playlists in the folder.
              Key : Name of the playlist (string)
-             Value : a dict of track analysis of all tracks from the playlist
-             (Values are returned from get_playlist_analysis)
+             Value : pandas.DataFrame returned from get_playlist_features
     '''
 
     folder_features = {}
@@ -627,7 +852,6 @@ def get_folder_features(spotipyUserAuth, filsort_pl=None, pl_name_id=None):
 
             pl_name = re.sub(r'[*|><:"?/]|\\', "", p[0])
             pl_name = demoji.replace(pl_name)
-
             folder_features[pl_name] = get_playlist_features(spotipyUserAuth, playlist_id=p[1])
 
     return folder_features
